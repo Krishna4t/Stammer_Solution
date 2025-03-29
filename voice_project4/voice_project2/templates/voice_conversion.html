@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Conversion</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            margin: 0;
+            padding: 40px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        nav {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 20px;
+            z-index: 10;
+        }
+        nav a, nav span {
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 10px 15px;
+            background: #3498db;
+            border-radius: 5px;
+            transition: background 0.3s ease;
+        }
+        nav a:hover { background: #2980b9; }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+            margin-top: 60px;
+        }
+        .container {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+            max-width: 900px;
+            width: 100%;
+        }
+        .card {
+            background: white;
+            width: 100%;
+            max-width: 350px;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        .card h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+        button:hover {
+            background: #2980b9;
+            transform: scale(1.05);
+        }
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        input[type="file"] { margin: 10px 0; padding: 5px; width: 100%; }
+        #output {
+            margin-top: 50px;
+            text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            max-width: 700px;
+            width: 100%;
+            animation: fadeIn 0.5s ease-in;
+            display: none;
+        }
+        #output h3 { color: #2c3e50; margin-bottom: 15px; }
+        #processedText { color: #34495e; font-size: 1.2em; margin: 0 0 20px; word-wrap: break-word; }
+        #previewAudio { margin-top: 20px; width: 100%; max-width: 400px; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 600px) {
+            .container { flex-direction: column; align-items: center; }
+            .card { max-width: 100%; }
+            h1 { font-size: 2em; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="{{ url_for('home') }}">Home</a>
+        <a href="{{ url_for('english') }}">Speech Recognition</a>
+        <a href="{{ url_for('leaderboard') }}">Leaderboard</a>
+        {% if username %}
+            <span>{{ username }}</span>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        {% else %}
+            <a href="{{ url_for('login') }}">Login</a>
+        {% endif %}
+    </nav>
+    <h1>Voice Conversion</h1>
+    <div class="container">
+        <div class="card">
+            <h2>Record Audio</h2>
+            <button id="startBtn">Start</button>
+            <button id="pauseBtn" disabled>Pause</button>
+            <button id="stopBtn" disabled>Stop</button>
+            <button id="submitRecordBtn" disabled>Submit</button>
+        </div>
+        <div class="card">
+            <h2>Upload Audio</h2>
+            <input type="file" id="audioFile" accept="audio/*">
+            <button id="submitUploadBtn">Submit</button>
+        </div>
+    </div>
+    <div id="output">
+        <h3>Recognized Text:</h3>
+        <p id="processedText"></p>
+        <audio id="previewAudio" controls></audio>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+
+        async function convertToWav(blob) {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const arrayBuffer = await blob.arrayBuffer();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            const wavBuffer = audioBufferToWav(audioBuffer);
+            return new Blob([wavBuffer], { type: 'audio/wav' });
+        }
+
+        function audioBufferToWav(audioBuffer) {
+            const numChannels = audioBuffer.numberOfChannels;
+            const sampleRate = audioBuffer.sampleRate;
+            const length = audioBuffer.length * numChannels * 2 + 44;
+            const buffer = new ArrayBuffer(length);
+            const view = new DataView(buffer);
+
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + audioBuffer.length * numChannels * 2, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * numChannels * 2, true);
+            view.setUint16(32, numChannels * 2, true);
+            view.setUint16(34, 16, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, audioBuffer.length * numChannels * 2, true);
+
+            let offset = 44;
+            for (let i = 0; i < audioBuffer.length; i++) {
+                for (let channel = 0; channel < numChannels; channel++) {
+                    const sample = Math.max(-1, Math.min(1, audioBuffer.getChannelData(channel)[i]));
+                    view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                    offset += 2;
+                }
+            }
+            return buffer;
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const startBtn = document.getElementById('startBtn');
+            const pauseBtn = document.getElementById('pauseBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const submitRecordBtn = document.getElementById('submitRecordBtn');
+            const submitUploadBtn = document.getElementById('submitUploadBtn');
+
+            startBtn.onclick = async () => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    mediaRecorder.start();
+                    console.log('Recording started with MIME type:', mediaRecorder.mimeType);
+
+                    mediaRecorder.ondataavailable = (e) => {
+                        audioChunks.push(e.data);
+                        console.log('Audio chunk recorded, size:', e.data.size);
+                    };
+                    mediaRecorder.onstop = () => {
+                        console.log('Recording stopped, chunks:', audioChunks.length);
+                        submitRecordBtn.disabled = false;
+                    };
+
+                    startBtn.disabled = true;
+                    pauseBtn.disabled = false;
+                    stopBtn.disabled = false;
+                } catch (err) {
+                    console.error('Error starting recording:', err.name, err.message);
+                    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                        alert('Microphone access denied. Please allow microphone access in your browser settings.');
+                    } else if (err.name === 'NotFoundError') {
+                        alert('No microphone found. Please connect a microphone.');
+                    } else {
+                        alert(`Failed to start recording: ${err.message}`);
+                    }
+                }
+            };
+
+            pauseBtn.onclick = () => {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.pause();
+                    pauseBtn.textContent = 'Resume';
+                    console.log('Recording paused');
+                } else if (mediaRecorder && mediaRecorder.state === 'paused') {
+                    mediaRecorder.resume();
+                    pauseBtn.textContent = 'Pause';
+                    console.log('Recording resumed');
+                }
+            };
+
+            stopBtn.onclick = () => {
+                if (mediaRecorder) {
+                    mediaRecorder.stop();
+                    mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                    startBtn.disabled = false;
+                    pauseBtn.disabled = true;
+                    stopBtn.disabled = true;
+                    pauseBtn.textContent = 'Pause';
+                    console.log('Recording fully stopped');
+                }
+            };
+
+            submitRecordBtn.onclick = async () => {
+                if (audioChunks.length > 0) {
+                    const initialBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+                    console.log('Converting to WAV, initial size:', initialBlob.size);
+                    const wavBlob = await convertToWav(initialBlob);
+                    console.log('Submitting recorded audio (WAV), size:', wavBlob.size);
+                    submitAudio(wavBlob, 'recorded_audio.wav');
+                    submitRecordBtn.disabled = true;
+                    audioChunks = [];
+                } else {
+                    alert('No recording available to submit.');
+                }
+            };
+
+            submitUploadBtn.onclick = () => {
+                const fileInput = document.getElementById('audioFile');
+                const file = fileInput.files[0];
+                if (file) {
+                    console.log('Submitting uploaded audio, size:', file.size);
+                    submitAudio(file, file.name);
+                } else {
+                    alert('Please select an audio file to upload.');
+                }
+            };
+        });
+
+        async function submitAudio(audio, filename) {
+            const formData = new FormData();
+            formData.append('audio', audio, filename);
+
+            try {
+                console.log('Sending audio to server:', filename);
+                const response = await fetch('/process_realtime_audio', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server error: ${response.status} - ${errorText}`);
+                }
+
+                const result = await response.json();
+                console.log('Server response:', result);
+
+                if (result.error) {
+                    alert(result.error);
+                    return;
+                }
+
+                const output = document.getElementById('output');
+                document.getElementById('processedText').textContent = result.text;
+                const audioPlayer = document.getElementById('previewAudio');
+                audioPlayer.src = 'data:audio/mp3;base64,' + result.audio;
+                output.style.display = 'block';
+            } catch (error) {
+                console.error('Error submitting audio:', error);
+                alert(`An error occurred: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

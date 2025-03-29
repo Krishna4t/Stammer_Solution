@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home - Stammer Practice</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            margin: 0;
+            padding: 40px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+.background {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            background: url("{{ url_for('static', filename='img.png') }}") no-repeat center center/cover;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        /*.background::before {*/
+        /*    content: "";*/
+        /*    position: absolute;*/
+        /*    top: 0;*/
+        /*    left: 0;*/
+        /*    width: 100%;*/
+        /*    height: 100%;*/
+        /*    background: rgba(0, 0, 0, 0.5);*/
+        /*}*/
+        nav {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        nav a, nav span {
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 10px 15px;
+            background: #3498db;
+            border-radius: 5px;
+            transition: background 0.3s ease;
+        }
+        nav a:hover { background: #2980b9; }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-top: 60px;
+            font-size: 2.5em;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin-top: 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.2em;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+        button:hover {
+            background: #2980b9;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+<div class="background">
+    <nav>
+        <a href="{{ url_for('home') }}">Home</a>
+        <a href="{{ url_for('english') }}">Speech Recognition</a>
+        <a href="{{ url_for('leaderboard') }}">Leaderboard</a>
+        {% if username %}
+            <span>{{ username }}</span>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        {% else %}
+            <a href="{{ url_for('login') }}">Login</a>
+            <a href="{{ url_for('signup') }}">Sign Up</a>
+        {% endif %}
+    </nav>
+    <h1>Welcome to Stammer Practice</h1>
+    <a href="{{ url_for('try_page') }}">Try</a>
+</div>
+</body>
+</html>

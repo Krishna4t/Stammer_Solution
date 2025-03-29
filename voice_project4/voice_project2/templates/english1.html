@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src='https://kit.fontawesome.com/a076d05399.js' crossorigin='anonymous'></script>
+
+    <title>Document</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
+
+* {
+
+
+font-family: "Poppins", sans-serif;
+}
+body{
+
+background-image: url("static/voice1.jpg"); 
+background-position: center;
+background-repeat: no-repeat;
+background-size: cover;
+height: 100vh;
+
+}
+.conversation {
+
+display: flex;
+flex-direction: column;
+max-width: 50%;
+margin: 0 auto;
+margin-top: 20px;
+padding: 20px;
+
+
+
+}
+
+.bubble {
+max-width: 70%;
+padding: 10px;
+margin: 5px;
+border-radius: 10px;
+
+
+}
+
+.speech {
+
+background-color: white; /* light blue */
+align-self: flex-start;
+color:rgb(0, 0, 0);
+font-weight: bold;
+}
+
+.result {
+background-color: #00ddff; /* light grey */
+align-self: flex-end;
+color: black;
+font-weight: bold;
+}
+#response-audio{
+width: 200px;
+height: 50px;
+}
+a{
+text-decoration: none;
+color: white;
+font-weight: bold;
+}
+.eng{
+
+background-color: rgb(102, 0, 255);
+width: fit-content;
+padding: 8px;
+border-radius: 5px;
+margin-top: 20px;
+margin-left: 300px;
+
+
+}
+.eng:hover{
+    background-color: rgb(197, 130, 238);
+}
+
+
+.log{ 
+position:fixed;
+top: 10px;
+left: 10px;
+padding: 5px;
+background-color: #00ddff;
+border-radius: 5px;
+color: black;
+}
+.log a{
+    color: black;
+}
+.log:hover{
+    background-color: #4ce5fc;
+}
+.voiceimg{
+    
+    padding: 30px;
+}
+.options a {
+    margin-right: 10px;
+    color: rgb(255, 0, 0);
+}
+h2{
+    color: red;
+    text-decoration: underline;
+    animation: animate 2.0s linear infinite; 
+}
+@keyframes animate{ 
+   0%{ 
+     opacity: 0; 
+   } 
+   50%{ 
+     opacity: 0.7; 
+   } 
+   100%{ 
+     opacity: 0; 
+   } 
+ } 
+
+
+</style>
+</head>
+<body>
+    <div class="voiceimg">
+
+    </div>
+
+        <div class="conversation">
+        <div class="bubble speech">{{speech}}</div>
+         <div class="bubble result">{{result}}</div>
+         
+          {% if audio_file %}
+            <audio id="response-audio" controls autoplay style="display: none;">
+           <source src="{{ url_for('static', filename=audio_file) }}" type="audio/mp3"> Your browser does not support the audio element.
+        </audio>   
+            {% endif %}
+                        
+ <h2> Talk To Press The Button Below</h2>                      
+ <div class="eng">                    
+    <a href="/speak" class="speakLink">Speak in English... <i class='fas fa-microphone'></i></a>
+</div>
+
+
+
+
+<script>
+
+
+
+    $(document).ready(function () {
+             $("#send").on("click", function () {
+                 var message = $("#text").val();
+                 if (message.trim() !== '') {
+                     $.ajax({
+                         data: {
+                             msg: message,
+                         },
+                         type: "POST",
+                         url: "/get",
+                     }).done(function (data) {
+                         var botHtml = '<p class="botText"><span>' + data + "</span></p>";
+                         $("#chatbox").append(botHtml);
+                         document.getElementById("userInput").scrollIntoView({
+                             block: "start",
+                             behavior: "smooth",
+                         });
+                     }).fail(function (xhr, status, error) {
+                         // Handle error
+                         console.error(error);
+                     });
+                 } else {
+                     alert("Please enter a message."); // Alert user if input field is empty
+                 }
+             });
+         });
+         window.onload = function() {
+   document.getElementById("audio").play();
+  }
+  
+  document.getElementById('speaktam').addEventListener('click', function(event) {
+             event.preventDefault(); // Prevent the default action of the link
+             
+             fetch('/speaktam', { method: 'POST' })
+             .then(response => {
+                 if (!response.ok) {
+                     throw new Error('Network response was not ok');
+                 }
+                 return response.json(); // assuming the server returns JSON
+             })
+             .then(data => {
+                 console.log(data); // Handle the response data as needed
+             })
+             .catch(error => {
+                 console.error('There was a problem with the fetch operation:', error);
+             });
+         });
+
+  </script>
+
+
+</body>
+</html>
